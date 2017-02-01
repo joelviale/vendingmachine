@@ -309,7 +309,7 @@ func (t *SimpleChaincode) recordTransaction(stub shim.ChaincodeStubInterface, ar
 	Totalval, err = strconv.ParseFloat(string(Totalvalbytes),64)
 
 	CSPPercentagebytes, err := stub.GetState(CSPName + "_Percentage")
-	SupplierPercentagebytes, err := stub.GetState(supplierName + "_Balance")
+	SupplierPercentagebytes, err := stub.GetState(supplierName + "_Percentage")
 
 	CSPPercentage, err = strconv.ParseFloat(string(CSPPercentagebytes),64)
 	SupplierPercentage, err = strconv.ParseFloat(string(SupplierPercentagebytes),64)
