@@ -20,6 +20,9 @@ func main() {
 	}
 }
 
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 // +----------------------------+
 // | Init resets all the things |
 // +----------------------------+
@@ -45,8 +48,14 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function stri
 	// Handle different functions
 	if function == "init" {
 		return t.Init(stub, "init", args)
+	} else if function == "addVMC" {
+		return t.addVMC(stub, args)
+	} else if function == "removeVMC" {
+		return t.removeVMC(stub, args)
 	} else if function == "addCSP" {
 		return t.addCSP(stub, args)
+	} else if function == "removeCSP" {
+		return t.removeCSP(stub, args)
 	} else if function == "addSupplier" {
 		return t.addSupplier(stub, args)
 	} else if function == "removeSupplier" {
@@ -69,6 +78,52 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function stri
 	fmt.Println("invoke did not find func: " + function)
 
 	return nil, errors.New("Received unknown function invocation: " + function)
+}
+
+// +-------------------------------------------+
+// | addVMC - invoke function to add a new VMC |
+// +-------------------------------------------+
+func (t *SimpleChaincode) addVMC(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+	var VMCName string
+	var initialBalance float64
+	var err error
+	
+	if len(args) != 2 {
+		return nil, errors.New("Incorrect number of arguments. Expecting 2")
+	}
+	
+	VMCName = args[0]
+	initialBalance, err = strconv.ParseFloat(args[1], 64)
+
+	// Create all the key/value pairs to the ledger
+	stub.PutState(VMCName + "_Balance", []byte(strconv.FormatFloat(initialBalance, 'f', -1, 64)))
+
+	fmt.Println("running addVMC()")
+
+	if err != nil {
+		return nil, err
+	}
+	return nil, nil
+}
+
+// +-------------------------------------------------------+
+// | removeVMC - invoke function to remove an existing VMC |
+// +-------------------------------------------------------+
+func (t *SimpleChaincode) removeVMC(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+	var VMCName string
+	
+	if len(args) != 1 {
+		return nil, errors.New("Incorrect number of arguments. Expecting 1")
+	}
+	
+	VMCName = args[0]
+
+	// Delete all the key/value pairs from the ledger
+	stub.DelState(VMCName + "_Balance")
+
+	fmt.Println("running removeVMC()")
+
+	return nil, nil
 }
 
 // +-------------------------------------------+
@@ -96,6 +151,27 @@ func (t *SimpleChaincode) addCSP(stub shim.ChaincodeStubInterface, args []string
 	if err != nil {
 		return nil, err
 	}
+	return nil, nil
+}
+
+// +-------------------------------------------------------+
+// | removeCSP - invoke function to remove an existing CSP |
+// +-------------------------------------------------------+
+func (t *SimpleChaincode) removeCSP(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+	var CSPName string
+	
+	if len(args) != 1 {
+		return nil, errors.New("Incorrect number of arguments. Expecting 1")
+	}
+	
+	CSPName = args[0]
+
+	// Delete all the key/value pairs from the ledger
+	stub.DelState(CSPName + "_Percentage")
+	stub.DelState(CSPName + "_Balance")
+
+	fmt.Println("running removeCSP()")
+
 	return nil, nil
 }
 
@@ -143,7 +219,7 @@ func (t *SimpleChaincode) removeSupplier(stub shim.ChaincodeStubInterface, args 
 	stub.DelState(supplierName + "_Percentage")
 	stub.DelState(supplierName + "_Balance")
 
-	fmt.Println("running deleteSupplier()")
+	fmt.Println("running removeSupplier()")
 
 	return nil, nil
 }
@@ -188,7 +264,7 @@ func (t *SimpleChaincode) updatePercentage(stub shim.ChaincodeStubInterface, arg
 	companyName = args[0]
 	percentage, err = strconv.ParseFloat(args[1], 64)
 
-	stub.PutState(companyName + "_percentage", []byte(strconv.FormatFloat(percentage, 'f', -1, 64)))
+	stub.PutState(companyName + "_Percentage", []byte(strconv.FormatFloat(percentage, 'f', -1, 64)))
 
 	fmt.Println("running updatePercentage()")
 
