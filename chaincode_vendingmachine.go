@@ -336,10 +336,12 @@ func (t *SimpleChaincode) recordTransaction(stub shim.ChaincodeStubInterface, ar
 	jsonResp = "{\"" + supplierName + "_Balance\":" + strconv.FormatFloat(Supplierval, 'f', -1, 64) + "\","
 	jsonResp += "{\"" + CSPName + "_Balance\":" + strconv.FormatFloat(CSPval, 'f', -1, 64) + "\","
 	jsonResp += "{\"" + VMCName + "_Balance\":" + strconv.FormatFloat(VMCval, 'f', -1, 64) + "\"}"
+	
+	fmt.Println("recordTransaction.jsonResp = " + jsonResp)
 
-	if err != nil {
-		return nil, err
-	}
+	//if err != nil {
+	//	return nil, err
+	//}
 	//return nil, nil
 	return []byte(jsonResp), nil
 }
