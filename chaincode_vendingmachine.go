@@ -279,24 +279,25 @@ func (t *SimpleChaincode) updatePercentage(stub shim.ChaincodeStubInterface, arg
 // +-------------------------------------------------------------------------------------------------------------+
 
 func (t *SimpleChaincode) recordTransaction(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
-	var supplierName, CSPName, VMCName string
+	var supplierName, CSPName, VMCName, transactionId string
 	var amountval float64
 	var CSPval, VMCval, Supplierval, Totalval, CSPPercentage, SupplierPercentage float64
 	var CSPAdd, VMCAdd, SupplierAdd float64
 	var err error
-	var jsonResp string
+	//var jsonResp string
 
 	fmt.Println("running recordTransaction()")
 
-	if len(args) != 4 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 4. Amount and names of the 3 companies")
+	if len(args) != 5 {
+		return nil, errors.New("Incorrect number of arguments. Expecting 5. Transaction Id, Amount and names of the 3 companies")
 	}
 		
 	// 0. Get the amount and company names from the parameters
-	amountval, err = strconv.ParseFloat(args[0], 64)
-	supplierName = args[1]
-	CSPName = args[2]
-	VMCName = args[3]
+	transactionId = args[0]
+	amountval, err = strconv.ParseFloat(args[1], 64)
+	supplierName = args[2]
+	CSPName = args[3]
+	VMCName = args[4]
 	
 	// 1. Retrieve the current balances and percentages from the ledger
 	CSPvalbytes, err := stub.GetState(CSPName + "_Balance")
@@ -327,24 +328,30 @@ func (t *SimpleChaincode) recordTransaction(stub shim.ChaincodeStubInterface, ar
 	VMCval = VMCval + VMCAdd
 	
 	// 4. Write the update balances back to the ledger
+	stub.PutState(CSPName + "_Balance_" + transactionId, []byte(strconv.FormatFloat(CSPval, 'f', -1, 64)))
+	stub.PutState(VMCName + "_Balance_" + transactionId, []byte(strconv.FormatFloat(VMCval, 'f', -1, 64)))
+	stub.PutState(supplierName + "_Balance_" + transactionId, []byte(strconv.FormatFloat(Supplierval, 'f', -1, 64)))
+	
+	// 5. Write the update balances back to the ledger
 	stub.PutState(CSPName + "_Balance", []byte(strconv.FormatFloat(CSPval, 'f', -1, 64)))
 	stub.PutState(VMCName + "_Balance", []byte(strconv.FormatFloat(VMCval, 'f', -1, 64)))
 	stub.PutState(supplierName + "_Balance", []byte(strconv.FormatFloat(Supplierval, 'f', -1, 64)))
 	stub.PutState("Total_Balance", []byte(strconv.FormatFloat(Totalval, 'f', -1, 64)))
 	
-	// 5. Return the new balances
-	jsonResp = "{\"" + supplierName + "_Balance\":" + strconv.FormatFloat(Supplierval, 'f', -1, 64) + "\","
-	jsonResp += "{\"" + CSPName + "_Balance\":" + strconv.FormatFloat(CSPval, 'f', -1, 64) + "\","
-	jsonResp += "{\"" + VMCName + "_Balance\":" + strconv.FormatFloat(VMCval, 'f', -1, 64) + "\"}"
+	// 5. Return the new balances -- CANNOT!
+	//jsonResp = "{\"" + supplierName + "_Balance\":\"" + strconv.FormatFloat(Supplierval, 'f', -1, 64) + "\","
+	//jsonResp += "\"" + CSPName + "_Balance\":\"" + strconv.FormatFloat(CSPval, 'f', -1, 64) + "\","
+	//jsonResp += "\"" + VMCName + "_Balance\":\"" + strconv.FormatFloat(VMCval, 'f', -1, 64) + "\"}"
 	
-	fmt.Println("recordTransaction.jsonResp = " + jsonResp)
+	//fmt.Println("recordTransaction.jsonResp = " + jsonResp)
 
 	if err != nil {
 		fmt.Println("recordTransaction.error")
 		return nil, err
 	}
 
-	return []byte(jsonResp), nil
+	return nil, nil
+	//return []byte(jsonResp), nil
 }
 
 // +---------------------------------------------+
@@ -469,6 +476,8 @@ func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function strin
 		return t.read(stub, args)
 	} else if function == "getBalance" {
 		return t.getBalance(stub, args)
+	} else if function == "getBalanceWithTransaction" {
+		return t.getBalanceWithTransaction(stub, args)
 	} else if function == "getESIM" {
 		return t.getESIM(stub, args)
 	}
@@ -490,6 +499,29 @@ func (t *SimpleChaincode) getBalance(stub shim.ChaincodeStubInterface, args []st
 	
 	companyName = args[0]
 	key = companyName + "_Balance"
+	valAsbytes, err := stub.GetState(key)
+	if err != nil {
+		jsonResp = "{\"Error\":\"Failed to get state for " + key + "\"}"
+		return nil, errors.New(jsonResp)
+	}
+
+	return valAsbytes, nil
+}
+
+// +----------------------------------------------------------------------------------------------------------------+
+// | getBalanceWithTransaction - query function to read the balance of the company associated with a transaction Id |
+// +----------------------------------------------------------------------------------------------------------------+
+func (t *SimpleChaincode) getBalanceWithTransaction(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+	var key, jsonResp, companyName, transactionId string
+	var err error
+
+	if len(args) != 2 {
+		return nil, errors.New("Incorrect number of arguments. Expecting transaction Id and name of the company to get the balance")
+	}
+	
+	transactionId = args[0]
+	companyName = args[1]
+	key = companyName + "_Balance_" + transactionId
 	valAsbytes, err := stub.GetState(key)
 	if err != nil {
 		jsonResp = "{\"Error\":\"Failed to get state for " + key + "\"}"
