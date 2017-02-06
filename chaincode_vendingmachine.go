@@ -284,6 +284,7 @@ func (t *SimpleChaincode) recordTransaction(stub shim.ChaincodeStubInterface, ar
 	var CSPval, VMCval, Supplierval, Totalval, CSPPercentage, SupplierPercentage float64
 	var CSPAdd, VMCAdd, SupplierAdd float64
 	var err error
+	var jsonResp string
 
 	fmt.Println("running recordTransaction()")
 
@@ -330,11 +331,17 @@ func (t *SimpleChaincode) recordTransaction(stub shim.ChaincodeStubInterface, ar
 	stub.PutState(VMCName + "_Balance", []byte(strconv.FormatFloat(VMCval, 'f', -1, 64)))
 	stub.PutState(supplierName + "_Balance", []byte(strconv.FormatFloat(Supplierval, 'f', -1, 64)))
 	stub.PutState("Total_Balance", []byte(strconv.FormatFloat(Totalval, 'f', -1, 64)))
+	
+	// 5. Return the new balances
+	jsonResp = "{\"" + supplierName + "_Balance\":" + strconv.FormatFloat(Supplierval, 'f', -1, 64) + "\","
+	jsonResp += "{\"" + CSPName + "_Balance\":" + strconv.FormatFloat(CSPval, 'f', -1, 64) + "\","
+	jsonResp += "{\"" + VMCName + "_Balance\":" + strconv.FormatFloat(VMCval, 'f', -1, 64) + "\"}"
 
 	if err != nil {
 		return nil, err
 	}
-	return nil, nil
+	//return nil, nil
+	return []byte(jsonResp), nil
 }
 
 // +---------------------------------------------+
