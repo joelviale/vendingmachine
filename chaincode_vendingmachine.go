@@ -339,10 +339,11 @@ func (t *SimpleChaincode) recordTransaction(stub shim.ChaincodeStubInterface, ar
 	
 	fmt.Println("recordTransaction.jsonResp = " + jsonResp)
 
-	//if err != nil {
-	//	return nil, err
-	//}
-	//return nil, nil
+	if err != nil {
+		fmt.Println("recordTransaction.error")
+		return nil, err
+	}
+
 	return []byte(jsonResp), nil
 }
 
