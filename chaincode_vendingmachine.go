@@ -931,6 +931,8 @@ func (t *SimpleChaincode) getAllInventoryByEntity(stub shim.ChaincodeStubInterfa
 	
 	for iter.HasNext() {
 		ledgerKey, quantityBytes, err := iter.Next()
+		
+		fmt.Println("LedgerKey = " + ledgerKey);
 		if err != nil {
 			err = fmt.Errorf("iter.Next() failed: %s", err)
 			return nil, err
@@ -938,10 +940,14 @@ func (t *SimpleChaincode) getAllInventoryByEntity(stub shim.ChaincodeStubInterfa
 		
 		// Retrieve locationId from the ledger key
 		locationAndProduct := ledgerKey[l:len(ledgerKey)]
+		fmt.Println("locationAndProduct = " + locationAndProduct);
 		j := strings.Index(locationAndProduct, "_")
 		locationId = locationAndProduct[0:j]
+		fmt.Println("locationId = " + locationId);
 		productId = locationAndProduct[j+1:len(locationAndProduct)]
+		fmt.Println("productId = " + productId);
 		quantity = string(quantityBytes)
+		fmt.Println("quantity = " + quantity);
 		
 		fmt.Println("getAllInventoryByEntity found product: " + productId + " in location " + locationId + " with quantity: " + quantity)
 
