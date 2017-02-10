@@ -176,7 +176,7 @@ func (t *SimpleChaincode) updateInventory(stub shim.ChaincodeStubInterface, args
 
 	// Retrieve current quantity for this location and product
 	// Check if there is an existing quantity
-	currentQuantityBytes, err := stub.GetState("Inventory" + SEPARATOR + entityId + SEPARATOR + locationId + SEPARATOR + productId);
+	currentQuantityBytes, err := stub.GetState("InventoryByLocation" + SEPARATOR + entityId + SEPARATOR + locationId + SEPARATOR + productId);
 	//if err != nil {
 	if len(currentQuantityBytes) <= 0 {
 		// No current quantity
@@ -189,7 +189,7 @@ func (t *SimpleChaincode) updateInventory(stub shim.ChaincodeStubInterface, args
 	}
 	
 	// Do the same for total quantity
-	currentTotalQuantityBytes, err := stub.GetState("Inventory" + SEPARATOR + entityId + SEPARATOR + productId);
+	currentTotalQuantityBytes, err := stub.GetState("InventoryByProduct" + SEPARATOR + entityId + SEPARATOR + productId);
 	//if err != nil {
 	if len(currentTotalQuantityBytes) <= 0 {
 		// No total quantity
@@ -202,8 +202,8 @@ func (t *SimpleChaincode) updateInventory(stub shim.ChaincodeStubInterface, args
 	}
 	
 	// Store the quantities back to the ledger	
-	stub.PutState("Inventory" + SEPARATOR + entityId + SEPARATOR + locationId + SEPARATOR + productId, []byte(strconv.Itoa(newQuantity)))
-	stub.PutState("Inventory" + SEPARATOR + entityId + SEPARATOR + productId, []byte(strconv.Itoa(newTotalQuantity)))
+	stub.PutState("InventoryByLocation" + SEPARATOR + entityId + SEPARATOR + locationId + SEPARATOR + productId, []byte(strconv.Itoa(newQuantity)))
+	stub.PutState("InventoryByProduct" + SEPARATOR + entityId + SEPARATOR + productId, []byte(strconv.Itoa(newTotalQuantity)))
 
 	if err != nil {
 		return nil, err
@@ -836,7 +836,7 @@ func (t *SimpleChaincode) getInventoryByEntityAndProduct(stub shim.ChaincodeStub
 	entityId = args[0]
 	productId = args[1]
 	
-	quantityBytes, err := stub.GetState("Inventory" + SEPARATOR + entityId + SEPARATOR + productId)
+	quantityBytes, err := stub.GetState("InventoryByProduct" + SEPARATOR + entityId + SEPARATOR + productId)
 
 	quantity = string(quantityBytes)
 	
@@ -866,7 +866,7 @@ func (t *SimpleChaincode) getInventoryByEntityAndLocation(stub shim.ChaincodeStu
 	entityId = args[0]
 	locationId = args[1]
 	
-	keyPrefix = "Inventory" + SEPARATOR + entityId + SEPARATOR + locationId + SEPARATOR
+	keyPrefix = "InventoryByLocation" + SEPARATOR + entityId + SEPARATOR + locationId + SEPARATOR
 	l := len(keyPrefix)
 	iter, err := stub.RangeQueryState(keyPrefix, keyPrefix + "{")
 	
@@ -923,7 +923,7 @@ func (t *SimpleChaincode) getAllInventoryByEntity(stub shim.ChaincodeStubInterfa
 	entityId = args[0]
 	
 	// Format Inventory_EntityId_LocationId_ProductId
-	keyPrefix = "Inventory" + SEPARATOR + entityId + SEPARATOR
+	keyPrefix = "InventoryByLocation" + SEPARATOR + entityId + SEPARATOR
 	l := len(keyPrefix)
 	iter, err := stub.RangeQueryState(keyPrefix, keyPrefix + "{")
 	
