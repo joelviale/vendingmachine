@@ -5,6 +5,8 @@ import (
 	"fmt"
 	//"golang.org/pkg/strconv"
 	"strconv"
+	"strings"
+	//"encoding/json"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 )
@@ -12,6 +14,10 @@ import (
 // SimpleChaincode example simple Chaincode implementation
 type SimpleChaincode struct {
 }
+
+//type Products struct {
+//	Product []string `json:"product"`
+//}
 
 func main() {
 	err := shim.Start(new(SimpleChaincode))
@@ -74,10 +80,132 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function stri
 		return t.removeESIM(stub, args)
 	} else if function == "deactivateESIM" {
 		return t.deactivateESIM(stub, args)
+	} else if function == "createProduct" {
+		return t.createProduct(stub, args)
+	} else if function == "removeProduct" {
+		return t.removeProduct(stub, args)
+	} else if function == "updateInventory" {
+		return t.updateInventory(stub, args)
 	}
 	fmt.Println("invoke did not find func: " + function)
 
 	return nil, errors.New("Received unknown function invocation: " + function)
+}
+
+// +---------------------------------------------------------+
+// | createProduct - invoke function to create a new Product |
+// +---------------------------------------------------------+
+func (t *SimpleChaincode) createProduct(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+	var productId, productName, productImg, productPrice, productQRCode string
+	
+	productId = args[0]
+	productName = args[1]
+	productImg = args[2]
+	productPrice = args[3]
+	productQRCode = args[4]
+	
+	// Create all the key/value pairs in the ledger
+	// The first key is necessary to list all the products
+	stub.PutState("Product_" + productId, []byte(productId))
+	stub.PutState(productId + "_Name", []byte(productName))
+	stub.PutState(productId + "_Image", []byte(productImg))
+	stub.PutState(productId + "_Price", []byte(productPrice))
+	stub.PutState(productId + "_QRCode", []byte(productQRCode))
+
+	fmt.Println("running createProduct()")
+
+	//var ledgerKey = "products"
+	//var newProduct = Product{make([]string, 1)}
+	//newProduct.Product[0] = stateJSON
+
+	return nil, nil
+}
+
+// +-----------------------------------------------------+
+// | removeProduct - invoke function to remove a Product |
+// | Params - productId                                  |
+// +-----------------------------------------------------+
+func (t *SimpleChaincode) removeProduct(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+	var productId string
+	
+	if len(args) != 1 {
+		return nil, errors.New("Incorrect number of arguments. Expecting 1")
+	}
+	
+	productId = args[0]
+
+	// Delete all the key/value pairs to the ledger
+	stub.DelState("Product_" + productId)
+	stub.DelState(productId + "_Name")
+	stub.DelState(productId + "_Image")
+	stub.DelState(productId + "_Price")
+	stub.DelState(productId + "_QRCode")
+
+	fmt.Println("running removeProduct()")
+
+	return nil, nil
+}
+
+// +------------------------------------------------------------------------+
+// | updateInventory - invoke function to update the inventory of an entity |
+// +------------------------------------------------------------------------+
+func (t *SimpleChaincode) updateInventory(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+	// Location Id corresponds to the location within the vending machine
+	// Two quantities are maintained in the ledger:
+	// - the quantity for one specific location within the vending machine
+	// - the total quantity of the product in the vending machine, for all locations
+	var entityId, locationId, productId, quantityString string
+	var currentQuantity, currentTotalQuantity, newQuantity, newTotalQuantity int
+	var err error
+	
+	currentQuantity = 0
+	currentTotalQuantity = 0
+
+	fmt.Println("running updateInventory()")
+	
+	entityId = args[0]
+	locationId = args[1]
+	productId = args[2]
+	quantityString = args[3]
+	
+	// Can be positive (add to inventory) or negative (remove from inventory)
+	deltaQuantity, err := strconv.Atoi(quantityString)
+
+	// Retrieve current quantity for this location and product
+	// Check if there is an existing quantity
+	currentQuantityBytes, err := stub.GetState("Inventory_" + entityId + "_" + locationId + "_" + productId);
+	//if err != nil {
+	if len(currentQuantityBytes) <= 0 {
+		// No current quantity
+		// Would need to check if deltaQuantity is positive
+		newQuantity = deltaQuantity
+	} else {
+		// Product is already in this location
+		currentQuantity, err = strconv.Atoi(string(currentQuantityBytes))
+		newQuantity = currentQuantity + deltaQuantity
+	}
+	
+	// Do the same for total quantity
+	currentTotalQuantityBytes, err := stub.GetState("Inventory_" + entityId + "_" + productId);
+	//if err != nil {
+	if len(currentTotalQuantityBytes) <= 0 {
+		// No total quantity
+		// Would need to check if deltaQuantity is positive
+		newTotalQuantity = deltaQuantity
+	} else {
+		// Product is already in this location
+		currentTotalQuantity, err = strconv.Atoi(string(currentTotalQuantityBytes))
+		newTotalQuantity = currentTotalQuantity + deltaQuantity
+	}
+	
+	// Store the quantities back to the ledger	
+	stub.PutState("Inventory_" + entityId + "_" + locationId + "_" + productId, []byte(strconv.Itoa(newQuantity)))
+	stub.PutState("Inventory_" + entityId + "_" + productId, []byte(strconv.Itoa(newTotalQuantity)))
+
+	if err != nil {
+		return nil, err
+	}
+	return nil, nil
 }
 
 // +-------------------------------------------+
@@ -491,6 +619,16 @@ func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function strin
 		return t.getBalanceWithTransaction(stub, args)
 	} else if function == "getESIM" {
 		return t.getESIM(stub, args)
+	} else if function == "readAllProducts" {
+		return t.readAllProducts(stub, args)
+	} else if function == "getInventoryByEntityAndProduct" {
+		return t.getInventoryByEntityAndProduct(stub, args)
+	} else if function == "getInventoryByEntityAndLocation" {
+		return t.getInventoryByEntityAndLocation(stub, args)
+	} else if function == "getAllInventoryByEntity" {
+		return t.getAllInventoryByEntity(stub, args)
+	} else if function == "getAllInventory" {
+		return t.getAllInventory(stub, args)
 	}
 	fmt.Println("query did not find func: " + function)
 
@@ -591,8 +729,8 @@ func (t *SimpleChaincode) getESIM(stub shim.ChaincodeStubInterface, args []strin
 	IoTId = string(IoTIdBytes)
 	IoTSecret = string(IoTSecretBytes)
 	
-	jsonResp = "{\"eSIMId\":" + eSIMId + "\",\"status\":" + status + "\",\"CSP\":" + CSPName + "\",\"manufacturer\":" + manufacturer
-	jsonResp += "\",\"EndUser\":" + endUserId + "\",\"IoTId\":" + IoTId + "\",\"IoTSecret\":" + IoTSecret + "\"}";
+	jsonResp = "{\"eSIMId\":\"" + eSIMId + "\",\"status\":\"" + status + "\",\"CSP\":\"" + CSPName + "\",\"manufacturer\":\"" + manufacturer
+	jsonResp += "\",\"EndUser\":\"" + endUserId + "\",\"IoTId\":\"" + IoTId + "\",\"IoTSecret\":\"" + IoTSecret + "\"}";
 
 	if err != nil {
 		jsonResp = "{\"Error\":\"Failed to get eSIM infos\"}"
@@ -601,6 +739,240 @@ func (t *SimpleChaincode) getESIM(stub shim.ChaincodeStubInterface, args []strin
 
 	return []byte(jsonResp), nil
 }
+
+// +----------------------------------------------------------------------+
+// | readAllProducts - query function to read all products in the catalog |
+// +----------------------------------------------------------------------+
+func (t *SimpleChaincode) readAllProducts(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+	var productId, productName, productImg, productPrice, productQRCode string
+	var jsonResp string
+	var err error
+	
+	//productId = args[0]
+	//productName = args[1]
+	//productImg = args[2]
+	//productPrice = args[3]
+	//productQRCode = args[4]
+	
+	// Create all the key/value pairs in the ledger
+	// The first key is necessary to list all the products
+	//stub.PutState("Product_" + productId, []byte(productId))
+	//stub.PutState(productId + "_Name", []byte(productName))
+	//stub.PutState(productId + "_Image", []byte(productImg))
+	//stub.PutState(productId + "_Price", []byte(productPrice))
+	//stub.PutState(productId + "_QRCode", []byte(productQRCode))
+
+	// RangeQueryState function can be invoked by a chaincode to query of a range
+	// of keys in the state. Assuming the startKey and endKey are in lexical order,
+	// an iterator will be returned that can be used to iterate over all keys
+	// between the startKey and endKey, inclusive. The order in which keys are
+	// returned by the iterator is random.
+
+	iter, err := stub.RangeQueryState("Product_", "Product_}")
+	
+	jsonResp = "["
+	
+	var i int
+	i = 0
+	
+	for iter.HasNext() {
+		ledgerKey, productIdBytes, err := iter.Next()
+		productId = string(productIdBytes)
+		fmt.Println("readAllProducts found product: " + productId + "\n and ledge key: " + ledgerKey)
+		if err != nil {
+			err = fmt.Errorf("readAllProducts iter.Next() failed: %s", err)
+			//log.Error(err)
+			return nil, err
+		}
+		// log.Debug("readAllProducts found product: " + productId + "\n")
+		//err = json.Unmarshal(assetBytes, &state)
+		
+		// Read attributes from the ledger
+		productNameBytes, err := stub.GetState(productId + "_Name")
+		productImgBytes, err := stub.GetState(productId + "_Image")
+		productPriceBytes, err := stub.GetState(productId + "_Price")
+		productQRCodeBytes, err := stub.GetState(productId + "_QRCode")
+		
+		productName = string(productNameBytes)
+		productImg = string(productImgBytes)
+		productPrice = string(productPriceBytes)
+		productQRCode = string(productQRCodeBytes)
+		
+		if(i>0) {
+			jsonResp += ","
+		}
+		
+		jsonResp += "{\"productId\":\"" + productId + "\",\"productName\":\"" + productName + "\",\"productImg\":\"" + productImg
+		jsonResp += "\",\"productPrice\":\"" + productPrice + "\",\"productQRCode\":\"" + productQRCode + "\"}";
+
+		i ++
+	}
+
+	jsonResp += "]"
+	
+	if err != nil {
+		jsonResp = "{\"Error\":\"Failed to get eSIM infos\"}"
+		return nil, errors.New(jsonResp)
+	}
+
+	return []byte(jsonResp), nil
+}
+
+// +---------------------------------------------------------------------------------------+
+// | getInventoryByEntityAndProduct - retrieve the quantity for the entity and the product |
+// +---------------------------------------------------------------------------------------+
+func (t *SimpleChaincode) getInventoryByEntityAndProduct(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+	var entityId, productId, quantity string
+	var jsonResp string
+	var err error
+
+	if len(args) != 2 {
+		return nil, errors.New("Incorrect number of arguments. Expecting 2")
+	}
+	
+	entityId = args[0]
+	productId = args[1]
+	
+	quantityBytes, err := stub.GetState("Inventory_" + entityId + "_" + productId)
+
+	quantity = string(quantityBytes)
+	
+	jsonResp = "{\"quantity\":\"" + quantity + "\"}";
+
+	if err != nil {
+		jsonResp = "{\"Error\":\"Failed to get product infos\"}"
+		return nil, errors.New(jsonResp)
+	}
+
+	return []byte(jsonResp), nil
+}
+
+// +------------------------------------------------------------------------------------------------+
+// | getInventoryByEntityAndLocation - retrieve the product and quantity for an entity and location |
+// +------------------------------------------------------------------------------------------------+
+func (t *SimpleChaincode) getInventoryByEntityAndLocation(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+	var entityId, locationId, productId, quantity, keyPrefix string
+	var jsonResp string
+	var q int
+	var err error
+
+	if len(args) != 2 {
+		return nil, errors.New("Incorrect number of arguments. Expecting 2")
+	}
+	
+	entityId = args[0]
+	locationId = args[1]
+	
+	keyPrefix = "Inventory_" + entityId + "_" + locationId + "_"
+	l := len(keyPrefix)
+	iter, err := stub.RangeQueryState(keyPrefix, keyPrefix + "{")
+	
+	jsonResp = "["
+	
+	var i int
+	i = 0
+	
+	for iter.HasNext() {
+		ledgerKey, quantityBytes, err := iter.Next()
+		if err != nil {
+			err = fmt.Errorf("iter.Next() failed: %s", err)
+			return nil, err
+		}
+		productId = ledgerKey[l:len(ledgerKey)]
+		quantity = string(quantityBytes)
+		fmt.Println("getInventoryByEntityAndLocation found product: " + productId + "\n and quantity: " + quantity)
+
+		
+		if(i>0) {
+			jsonResp += ","
+		}
+		
+		q, err = strconv.Atoi(quantity)
+		if q > 0 {
+			jsonResp += "{\"productId\":\"" + productId + "\",\"quantity\":\"" + quantity + "\"}";
+		}
+		i ++
+	}
+
+	jsonResp += "]"
+
+	if err != nil {
+		jsonResp = "{\"Error\":\"Failed to get infos\"}"
+		return nil, errors.New(jsonResp)
+	}
+
+	return []byte(jsonResp), nil
+}
+
+// +----------------------------------------------------------------------------------+
+// | getAllInventoryByEntity - retrieve all products and quantities for each location |
+// +----------------------------------------------------------------------------------+
+func (t *SimpleChaincode) getAllInventoryByEntity(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+	var entityId, locationId, productId, quantity, keyPrefix string
+	var jsonResp string
+	var q int
+	var err error
+
+	if len(args) != 1 {
+		return nil, errors.New("Incorrect number of arguments. Expecting 1")
+	}
+	
+	entityId = args[0]
+	
+	// Format Inventory_EntityId_LocationId_ProductId
+	keyPrefix = "Inventory_" + entityId + "_"
+	l := len(keyPrefix)
+	iter, err := stub.RangeQueryState(keyPrefix, keyPrefix + "{")
+	
+	jsonResp = "["
+	
+	var i int
+	i = 0
+	
+	for iter.HasNext() {
+		ledgerKey, quantityBytes, err := iter.Next()
+		if err != nil {
+			err = fmt.Errorf("iter.Next() failed: %s", err)
+			return nil, err
+		}
+		
+		// Retrieve locationId from the ledger key
+		locationAndProduct := ledgerKey[l:len(ledgerKey)]
+		j := strings.Index(locationAndProduct, "_")
+		locationId = locationAndProduct[0:j]
+		productId = locationAndProduct[j+1:len(locationAndProduct)]
+		quantity = string(quantityBytes)
+		
+		fmt.Println("getAllInventoryByEntity found product: " + productId + " in location " + locationId + " with quantity: " + quantity)
+
+		if(i>0) {
+			jsonResp += ","
+		}
+		
+		q, err = strconv.Atoi(quantity)
+		if q > 0 {
+			jsonResp += "{\"productId\":\"" + productId + "\",\"locationId\":\"" + locationId + "\",\"quantity\":\"" + quantity + "\"}";
+		}
+		i ++
+	}
+
+	jsonResp += "]"
+
+	if err != nil {
+		jsonResp = "{\"Error\":\"Failed to get infos\"}"
+		return nil, errors.New(jsonResp)
+	}
+
+	return []byte(jsonResp), nil
+}
+
+// +-------------------------------------------------------------------------+
+// | getAllInventory - retrieve all products and quantities for all entities |
+// +-------------------------------------------------------------------------+
+func (t *SimpleChaincode) getAllInventory(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+	return nil, nil
+}
+
 
 // +----------------------------------------------+
 // | read - query function to read key/value pair |
