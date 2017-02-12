@@ -983,10 +983,6 @@ func (t *SimpleChaincode) getAllInventoryByEntity(stub shim.ChaincodeStubInterfa
 		
 		fmt.Println("getAllInventoryByEntity found product: " + productId + " in location " + locationId + " with quantity: " + quantity)
 
-		if(i>0) {
-			jsonResp += ","
-		}
-		
 		q, err = strconv.Atoi(quantity)
 		if q > 0 {
 			if i > 0 {
