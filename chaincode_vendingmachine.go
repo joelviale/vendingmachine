@@ -99,17 +99,19 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function stri
 // | createProduct - invoke function to create a new Product |
 // +---------------------------------------------------------+
 func (t *SimpleChaincode) createProduct(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
-	var productId, productName, productImg, productPrice, productQRCode string
+	var productId, productName, productImg, productPrice, productQRCode, entityId string
 	
 	productId = args[0]
-	productName = args[1]
-	productImg = args[2]
-	productPrice = args[3]
-	productQRCode = args[4]
+	entityId = args[1]
+	productName = args[2]
+	productImg = args[3]
+	productPrice = args[4]
+	productQRCode = args[5]
 	
 	// Create all the key/value pairs in the ledger
 	// The first key is necessary to list all the products
 	stub.PutState("Product_" + productId, []byte(productId))
+	stub.PutState(productId + "_Entity", []byte(entityId))
 	stub.PutState(productId + "_Name", []byte(productName))
 	stub.PutState(productId + "_Image", []byte(productImg))
 	stub.PutState(productId + "_Price", []byte(productPrice))
@@ -139,6 +141,7 @@ func (t *SimpleChaincode) removeProduct(stub shim.ChaincodeStubInterface, args [
 
 	// Delete all the key/value pairs to the ledger
 	stub.DelState("Product_" + productId)
+	stub.DelState(productId + "_Entity")
 	stub.DelState(productId + "_Name")
 	stub.DelState(productId + "_Image")
 	stub.DelState(productId + "_Price")
@@ -758,25 +761,27 @@ func (t *SimpleChaincode) getESIM(stub shim.ChaincodeStubInterface, args []strin
 // | readProduct - read a product in the catalog |
 // +---------------------------------------------+
 func (t *SimpleChaincode) readProduct(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
-	var productId, productName, productImg, productPrice, productQRCode string
+	var productId, productName, productImg, productPrice, productQRCode, entity string
 	var jsonResp string
 	var err error
 	
 	productId = args[0]
 	
 	// Read attributes from the ledger
+	productEntityBytes, err := stub.GetState(productId + "_Entity")
 	productNameBytes, err := stub.GetState(productId + "_Name")
 	productImgBytes, err := stub.GetState(productId + "_Image")
 	productPriceBytes, err := stub.GetState(productId + "_Price")
 	productQRCodeBytes, err := stub.GetState(productId + "_QRCode")
 	
+	entity = string(productEntityBytes)
 	productName = string(productNameBytes)
 	productImg = string(productImgBytes)
 	productPrice = string(productPriceBytes)
 	productQRCode = string(productQRCodeBytes)
 		
 	jsonResp = "["
-	jsonResp += "{\"productId\":\"" + productId + "\",\"productName\":\"" + productName + "\",\"productImg\":\"" + productImg
+	jsonResp += "{\"productId\":\"" + productId + "\",\"relatedEntity\":\"" + entity + "\",\"productName\":\"" + productName + "\",\"productImg\":\"" + productImg
 	jsonResp += "\",\"productPrice\":\"" + productPrice + "\",\"productQRCode\":\"" + productQRCode + "\"}";
 	jsonResp += "]"
 	
@@ -792,7 +797,7 @@ func (t *SimpleChaincode) readProduct(stub shim.ChaincodeStubInterface, args []s
 // | readAllProducts - query function to read all products in the catalog |
 // +----------------------------------------------------------------------+
 func (t *SimpleChaincode) readAllProducts(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
-	var productId, productName, productImg, productPrice, productQRCode string
+	var productId, productName, productImg, productPrice, productQRCode, entity string
 	var jsonResp string
 	var err error
 	
@@ -822,11 +827,13 @@ func (t *SimpleChaincode) readAllProducts(stub shim.ChaincodeStubInterface, args
 		//err = json.Unmarshal(assetBytes, &state)
 		
 		// Read attributes from the ledger
+		productEntityBytes, err := stub.GetState(productId + "_Entity")
 		productNameBytes, err := stub.GetState(productId + "_Name")
 		productImgBytes, err := stub.GetState(productId + "_Image")
 		productPriceBytes, err := stub.GetState(productId + "_Price")
 		productQRCodeBytes, err := stub.GetState(productId + "_QRCode")
 		
+		entity = string(productEntityBytes)
 		productName = string(productNameBytes)
 		productImg = string(productImgBytes)
 		productPrice = string(productPriceBytes)
@@ -836,7 +843,7 @@ func (t *SimpleChaincode) readAllProducts(stub shim.ChaincodeStubInterface, args
 			jsonResp += ","
 		}
 		
-		jsonResp += "{\"productId\":\"" + productId + "\",\"productName\":\"" + productName + "\",\"productImg\":\"" + productImg
+		jsonResp += "{\"productId\":\"" + productId + "\",\"relatedEntity\":\"" + entity + "\",\"productName\":\"" + productName + "\",\"productImg\":\"" + productImg
 		jsonResp += "\",\"productPrice\":\"" + productPrice + "\",\"productQRCode\":\"" + productQRCode + "\"}";
 
 		i ++
