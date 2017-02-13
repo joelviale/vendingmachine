@@ -928,8 +928,27 @@ func (t *SimpleChaincode) getInventoryByEntityAndLocation(stub shim.ChaincodeStu
 			if i > 0 {
 				jsonResp += ","
 			}
-			jsonResp += "{\"productId\":\"" + productId + "\",\"quantity\":\"" + quantity + "\"}";
+
+			// Read attributes from the ledger
+			productEntityBytes, err2 := stub.GetState(productId + "_Entity")
+			productNameBytes, err2 := stub.GetState(productId + "_Name")
+			productImgBytes, err2 := stub.GetState(productId + "_Image")
+			productPriceBytes, err2 := stub.GetState(productId + "_Price")
+			productQRCodeBytes, err2 := stub.GetState(productId + "_QRCode")
+	
+			entity := string(productEntityBytes)
+			productName := string(productNameBytes)
+			productImg := string(productImgBytes)
+			productPrice := string(productPriceBytes)
+			productQRCode := string(productQRCodeBytes)
+		
+			jsonResp += "{\"productId\":\"" + productId + "\",\"quantity\":\"" + quantity + "\",\"relatedEntity\":\"" + entity + "\",\"productName\":\"" + productName + "\",\"productImg\":\"" + productImg
+			jsonResp += "\",\"productPrice\":\"" + productPrice + "\",\"productQRCode\":\"" + productQRCode + "\"}";
 			i ++
+
+			if err2 != nil {
+				jsonResp = "{\"Error\":\"Failed to get infos\"}"
+			}
 		}
 	}
 
@@ -995,8 +1014,27 @@ func (t *SimpleChaincode) getAllInventoryByEntity(stub shim.ChaincodeStubInterfa
 			if i > 0 {
 				jsonResp += ","
 			}
-			jsonResp += "{\"productId\":\"" + productId + "\",\"locationId\":\"" + locationId + "\",\"quantity\":\"" + quantity + "\"}";
+
+			// Read attributes from the ledger
+			productEntityBytes, err2 := stub.GetState(productId + "_Entity")
+			productNameBytes, err2 := stub.GetState(productId + "_Name")
+			productImgBytes, err2 := stub.GetState(productId + "_Image")
+			productPriceBytes, err2 := stub.GetState(productId + "_Price")
+			productQRCodeBytes, err2 := stub.GetState(productId + "_QRCode")
+	
+			entity := string(productEntityBytes)
+			productName := string(productNameBytes)
+			productImg := string(productImgBytes)
+			productPrice := string(productPriceBytes)
+			productQRCode := string(productQRCodeBytes)
+		
+			jsonResp += "{\"productId\":\"" + productId + "\",\"locationId\":\"" + locationId + "\",\"quantity\":\"" + quantity + "\",\"relatedEntity\":\"" + entity + "\",\"productName\":\"" + productName + "\",\"productImg\":\"" + productImg
+			jsonResp += "\",\"productPrice\":\"" + productPrice + "\",\"productQRCode\":\"" + productQRCode + "\"}";
 			i ++
+
+			if err2 != nil {
+				jsonResp = "{\"Error\":\"Failed to get infos\"}"
+			}
 		}
 	}
 
