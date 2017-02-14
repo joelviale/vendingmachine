@@ -422,7 +422,7 @@ func (t *SimpleChaincode) updatePercentage(stub shim.ChaincodeStubInterface, arg
 // +-------------------------------------------------------------------------------------------------------------+
 
 func (t *SimpleChaincode) recordTransaction(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
-	var supplierName, CSPName, VMCName, transactionId string
+	var supplierName, CSPName, VMCName, transactionId, date, amount, product string
 	var amountval float64
 	var CSPval, VMCval, Supplierval, Totalval, CSPPercentage, SupplierPercentage float64
 	var CSPAdd, VMCAdd, SupplierAdd float64
@@ -432,16 +432,19 @@ func (t *SimpleChaincode) recordTransaction(stub shim.ChaincodeStubInterface, ar
 
 	fmt.Println("running recordTransaction()")
 
-	if len(args) != 5 {
+	if len(args) != 7 {
 		return nil, errors.New("Incorrect number of arguments. Expecting 5. Transaction Id, Amount and names of the 3 companies")
 	}
 		
 	// 0. Get the amount and company names from the parameters
 	transactionId = args[0]
-	amountval, err = strconv.ParseFloat(args[1], 64)
+	amount = args[1]
+	amountval, err = strconv.ParseFloat(amount, 64)
 	supplierName = args[2]
 	CSPName = args[3]
 	VMCName = args[4]
+	date = args[5]
+	product = args[6]
 	
 	// 1. Retrieve the current balances and percentages from the ledger
 	CSPvalbytes, err := stub.GetState(CSPName + "_Balance")
@@ -483,12 +486,14 @@ func (t *SimpleChaincode) recordTransaction(stub shim.ChaincodeStubInterface, ar
 	stub.PutState("Total_Balance", []byte(strconv.FormatFloat(Totalval, 'f', -1, 64)))
 
 	// 5. Store all the new balances associated with the transactions
-	json = "\"balances\":[{\"companyName\":\"" + supplierName + "\",\"balance\":" + strconv.FormatFloat(Supplierval, 'f', -1, 64) + "},"
+	json = "{\"transactionId\":\"" + transactionId + "\",\"amount\":\"" + amount + "\",\"Date\":\"" + date + "\","
+	json += "\"ProductName\":\"" + product + "\",\"SupplierName\":\"" + supplierName + "\",\"CSPName\":\"" + CSPName + "\",\"VMCName\":\"" + VMCName + "\","
+	json += "\"balances\":[{\"companyName\":\"" + supplierName + "\",\"balance\":" + strconv.FormatFloat(Supplierval, 'f', -1, 64) + "},"
 	json += "{\"companyName\":\"" + CSPName + "\",\"balance\":" + strconv.FormatFloat(CSPval, 'f', -1, 64) + "},"
-	json += "{\"companyName\":\"" + VMCName + "\",\"balance\":" + strconv.FormatFloat(VMCval, 'f', -1, 64) + "}]"
+	json += "{\"companyName\":\"" + VMCName + "\",\"balance\":" + strconv.FormatFloat(VMCval, 'f', -1, 64) + "}]}"
 	
 	fmt.Println("recordTransaction.json stored = " + json)
-	stub.PutState(transactionId, []byte(json))
+	stub.PutState("Transactions" + SEPARATOR + transactionId, []byte(json))
 		
 	// 5. Return the new balances -- CANNOT!
 	//jsonResp = "{\"" + supplierName + "_Balance\":\"" + strconv.FormatFloat(Supplierval, 'f', -1, 64) + "\","
@@ -626,6 +631,8 @@ func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function strin
 	// Handle different functions
 	if function == "read" { //read a variable
 		return t.read(stub, args)
+	} else if function == "getAllTransactions" {
+		return t.getAllTransactions(stub, args)
 	} else if function == "getTransaction" {
 		return t.getTransaction(stub, args)
 	} else if function == "getBalance" {
@@ -650,6 +657,50 @@ func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function strin
 	fmt.Println("query did not find func: " + function)
 
 	return nil, errors.New("Received unknown function query: " + function)
+}
+
+// +---------------------------------------------------------------------------------+
+// | getAllTransactions - query function to all transactions and associated balances |
+// +---------------------------------------------------------------------------------+
+func (t *SimpleChaincode) getAllTransactions(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+	var jsonResp, transactionDetails string
+	var err error
+
+	var prefix = "Transactions" + SEPARATOR
+
+	iter, err := stub.RangeQueryState(prefix, prefix + "}")
+	
+	jsonResp = "["
+	
+	var i int
+	i = 0
+	
+	for iter.HasNext() {
+		ledgerKey, transactionDetailsBytes, err := iter.Next()
+		
+		fmt.Println("getAllTransactions found transaction: " + ledgerKey)
+		if err != nil {
+			err = fmt.Errorf("getAllTransactions iter.Next() failed: %s", err)
+			//log.Error(err)
+			return nil, err
+		}
+		
+		transactionDetails = string(transactionDetailsBytes)
+		if(i>0) {
+			jsonResp += ","
+		}
+		jsonResp += transactionDetails
+		i ++
+	}
+
+	jsonResp += "]"
+	
+	if err != nil {
+		jsonResp = "{\"Error\":\"Failed to get all transactions infos\"}"
+		return nil, errors.New(jsonResp)
+	}
+
+	return []byte(jsonResp), nil
 }
 
 // +------------------------------------------------------------------------------------+
